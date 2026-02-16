@@ -2,9 +2,6 @@ import mysql from 'mysql2/promise';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,40 +9,35 @@ const __dirname = path.dirname(__filename);
 const mappingPath = path.join(__dirname, 'ship-image-mapping.json');
 const mapping = JSON.parse(fs.readFileSync(mappingPath, 'utf8'));
 
-// Script para actualizar las imágenes de los navíos en la base de datos
 async function update() {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
     console.error("DATABASE_URL not set!");
-    process.exit(1);
+    return;
   }
 
-  const connection = await mysql.createConnection(databaseUrl);
-  console.log("Connected to database. Updating with relative paths...");
+  console.log("Attempting to update database images...");
+  
+  let connection;
+  try {
+    connection = await mysql.createConnection(databaseUrl);
+    console.log("Connected successfully.");
 
-  let updated = 0;
-  for (const [slug, relPath] of Object.entries(mapping)) {
-    try {
-      // Usamos la ruta relativa que el navegador entiende como /ships/nombre.jpg
-      const finalPath = relPath.startsWith('http') ? relPath : (relPath.startsWith('/') ? relPath : `/${relPath}`);
-      
-      const [result] = await connection.execute(
+    for (const [slug, relPath] of Object.entries(mapping)) {
+      const finalPath = relPath.startsWith('/') ? relPath : `/${relPath}`;
+      await connection.execute(
         'UPDATE ships SET imageUrl = ? WHERE slug = ?',
         [finalPath, slug]
       );
-      
-      if (result.affectedRows > 0) {
-        updated++;
-        console.log(`✅ ${slug} -> ${finalPath}`);
-      }
-    } catch (error) {
-      console.error(`❌ ${slug}: ${error.message}`);
+      console.log(`Updated ${slug} -> ${finalPath}`);
     }
+    
+    console.log("All ships updated successfully.");
+  } catch (error) {
+    console.error("Database update failed:", error.message);
+  } finally {
+    if (connection) await connection.end();
   }
-
-  await connection.end();
-  console.log(`Updated ${updated} ships.`);
-  process.exit(0);
 }
 
-update().catch(console.error);
+update();
