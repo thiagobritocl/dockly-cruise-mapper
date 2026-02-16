@@ -88,6 +88,19 @@ export const appRouter = router({
       }),
   }),
 
+  // Rotas de seed de dados
+  seed: router({
+    runComplete: adminProcedure.mutation(async () => {
+      try {
+        const { seedCompleteData } = await import('./seed-runner');
+        const result = await seedCompleteData();
+        return { success: true, ...result };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    }),
+  }),
+
   // Painel de administração — apenas admins
   admin: router({
     getStats: adminProcedure.query(async () => {
