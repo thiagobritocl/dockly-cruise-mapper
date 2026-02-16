@@ -112,46 +112,57 @@ export default function Company() {
           </div>
         ) : ships && ships.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {ships.map((ship) => (
-              <Link key={ship.id} href={`/ship/${ship.slug}`}>
-                <Card className="bg-card border-border hover:border-primary transition-all duration-300 hover:shadow-lg hover:shadow-primary/10 cursor-pointer h-full overflow-hidden">
-                  <div className="h-48 bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center relative overflow-hidden">
-                    {ship.imageUrl ? (
-                      <img 
-                        src={ship.imageUrl} 
-                        alt={ship.name}
-                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <Ship className="h-16 w-16 text-primary/50" />
-                    )}
-                  </div>
-                  <CardHeader>
-                    <CardTitle className="text-xl text-foreground">{ship.name}</CardTitle>
-                    {ship.yearBuilt && (
-                      <CardDescription className="text-muted-foreground">
-                        Construído em {ship.yearBuilt}
-                      </CardDescription>
-                    )}
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {ship.passengerCapacity && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Users className="h-4 w-4" />
-                        <span>{ship.passengerCapacity.toLocaleString()} passageiros</span>
-                      </div>
-                    )}
-                    {ship.tonnage && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Anchor className="h-4 w-4" />
-                        <span>{ship.tonnage.toLocaleString()} GT</span>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
+            {ships.map((ship) => {
+              // Forçar URL absoluta para evitar problemas de base path em produção
+              const imageUrl = ship.imageUrl?.startsWith('/') 
+                ? `${window.location.origin}${ship.imageUrl}`
+                : ship.imageUrl;
+
+              return (
+                <Link key={ship.id} href={`/ship/${ship.slug}`}>
+                  <Card className="bg-card border-border hover:border-primary transition-all duration-300 hover:shadow-lg hover:shadow-primary/10 cursor-pointer h-full overflow-hidden">
+                    <div className="h-48 bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center relative overflow-hidden">
+                      {imageUrl ? (
+                        <img 
+                          src={`${imageUrl}?v=${Date.now()}`} 
+                          alt={ship.name}
+                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                          loading="lazy"
+                          onError={(e) => {
+                            // Fallback se a imagem falhar
+                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1548574505-5e239809ee19?w=800&q=80';
+                          }}
+                        />
+                      ) : (
+                        <Ship className="h-16 w-16 text-primary/50" />
+                      )}
+                    </div>
+                    <CardHeader>
+                      <CardTitle className="text-xl text-foreground">{ship.name}</CardTitle>
+                      {ship.yearBuilt && (
+                        <CardDescription className="text-muted-foreground">
+                          Construído em {ship.yearBuilt}
+                        </CardDescription>
+                      )}
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {ship.passengerCapacity && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Users className="h-4 w-4" />
+                          <span>{ship.passengerCapacity.toLocaleString()} passageiros</span>
+                        </div>
+                      )}
+                      {ship.tonnage && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Anchor className="h-4 w-4" />
+                          <span>{ship.tonnage.toLocaleString()} GT</span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
           </div>
         ) : (
           <Card className="bg-card border-border">
