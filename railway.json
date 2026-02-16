@@ -5,7 +5,7 @@
     "buildCommand": "pnpm install && pnpm run build"
   },
   "deploy": {
-    "preDeploy": "pnpm run seed:correct && node scripts/download-wikipedia-images.mjs && node scripts/update-db-local-images.mjs || true",
+    "preDeploy": "pnpm run seed:correct && tsx scripts/update-db-local-images.mjs || true",
     "startCommand": "pnpm start",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10,
