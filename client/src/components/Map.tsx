@@ -116,7 +116,7 @@ function loadMapScript() {
   
   mapScriptLoading = new Promise((resolve, reject) => {
     const script = document.createElement("script");
-    script.src = `${MAPS_PROXY_URL}/maps/api/js?key=${API_KEY}&v=weekly&libraries=marker,places,geocoding,geometry`;
+   script.src = `https://maps.googleapis.com/maps/api/js?key=${API_KEY}&v=weekly&libraries=marker,places,geometry`;
     script.async = true;
     script.crossOrigin = "anonymous";
     script.onload = () => {
