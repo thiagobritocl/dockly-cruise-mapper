@@ -12,6 +12,7 @@ const __dirname = path.dirname(__filename);
 const mappingPath = path.join(__dirname, 'ship-image-mapping.json');
 const mapping = JSON.parse(fs.readFileSync(mappingPath, 'utf8'));
 
+// Script para actualizar las imágenes de los navíos en la base de datos
 async function update() {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
