@@ -1,9 +1,10 @@
-import { getDb } from "../server/db.js";
-import { ships } from "../drizzle/schema.js";
-import { eq } from "drizzle-orm";
+import mysql from 'mysql2/promise';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,30 +18,35 @@ if (!fs.existsSync(mappingPath)) {
 const mapping = JSON.parse(fs.readFileSync(mappingPath, 'utf8'));
 
 async function update() {
-  const db = await getDb();
-  if (!db) {
-    console.error("Database connection failed!");
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    console.error("DATABASE_URL environment variable is not set!");
     process.exit(1);
   }
+
+  console.log("Connecting to database directly via mysql2...");
+  const connection = await mysql.createConnection(databaseUrl);
   
   console.log("Updating database with local image paths...");
 
   let updated = 0;
   for (const [slug, imageUrl] of Object.entries(mapping)) {
     try {
-      const result = await db.update(ships)
-        .set({ imageUrl })
-        .where(eq(ships.slug, slug));
+      const [result] = await connection.execute(
+        'UPDATE ships SET imageUrl = ? WHERE slug = ?',
+        [imageUrl, slug]
+      );
       
-      // En mysql2/drizzle, el resultado suele ser un array donde el primer elemento tiene info de la op
-      if (result[0].affectedRows > 0) {
+      if (result.affectedRows > 0) {
         updated++;
+        console.log(`✅ Updated: ${slug}`);
       }
     } catch (error) {
-      console.error(`Error updating ${slug}:`, error.message);
+      console.error(`❌ Error updating ${slug}:`, error.message);
     }
   }
 
+  await connection.end();
   console.log(`Successfully updated ${updated} ships in the database.`);
   process.exit(0);
 }
