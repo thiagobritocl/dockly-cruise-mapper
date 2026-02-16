@@ -21,7 +21,8 @@
     "setup:all-ships": "tsx scripts/seed-all-ships-complete.mjs",
     "seed:complete": "tsx seed-complete-data.mjs",
     "update:logos-real": "tsx scripts/update-logos-real.mjs",
-    "update:ships-real": "tsx scripts/update-ships-images.mjs"
+    "update:ships-real": "tsx scripts/update-ships-images.mjs",
+    "update:images": "tsx update-database-with-images.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.693.0",

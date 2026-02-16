@@ -5,7 +5,7 @@
     "buildCommand": "pnpm install && pnpm run build"
   },
   "deploy": {
-    "preDeploy": "pnpm run seed:complete || true",
+    "preDeploy": "pnpm run update:images || true",
     "startCommand": "pnpm start",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10,
