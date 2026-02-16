@@ -5,7 +5,7 @@
     "buildCommand": "pnpm install && pnpm run build"
   },
   "deploy": {
-    "preDeploy": "pnpm run seed:correct || true",
+    "preDeploy": "pnpm run seed:correct && pnpm run update:ships-images || true",
     "startCommand": "pnpm start",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10,
