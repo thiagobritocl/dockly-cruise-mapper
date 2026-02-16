@@ -1,4 +1,4 @@
-import { getDb } from '../server/db.ts';
+import { db } from '../server/db.ts';
 import { ships, itineraries, ports, itineraryStops } from '../drizzle/schema.ts';
 import { eq } from 'drizzle-orm';
 
@@ -245,13 +245,7 @@ const portCoordinates = {
 
 async function seedRealItineraries() {
   console.log('🗺️  Populando itinerários reais...\n');
-
-  const db = await getDb();
-  if (!db) {
-    console.error('❌ Banco de dados não disponível. Verifique a variável DATABASE_URL.');
-    process.exit(1);
-  }
-
+  
   let successCount = 0;
   let errorCount = 0;
   
@@ -289,20 +283,19 @@ async function seedRealItineraries() {
         let [port] = await db.select().from(ports).where(eq(ports.name, stop.portName)).limit(1);
         
         if (!port) {
-          const [insertedPort] = await db.insert(ports).values({
+          [port] = await db.insert(ports).values({
             name: stop.portName,
             city: portCoord.city,
             country: stop.country,
             latitude: portCoord.lat.toString(),
             longitude: portCoord.lon.toString()
           });
-          port = { id: insertedPort.insertId };
         }
         
         // Criar parada
         await db.insert(itineraryStops).values({
           itineraryId: createdItinerary.insertId,
-          portId: port.id,
+          portId: port.id || port.insertId,
           dayNumber: stop.dayNumber,
           arrivalTime: stop.arrivalTime,
           departureTime: stop.departureTime

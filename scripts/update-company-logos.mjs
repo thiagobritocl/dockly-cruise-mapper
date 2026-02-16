@@ -1,4 +1,4 @@
-import { getDb } from '../server/db.ts';
+import { db } from '../server/db.ts';
 import { companies } from '../drizzle/schema.ts';
 import { eq } from 'drizzle-orm';
 
@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
  * Script para atualizar logos das companhias de cruzeiros
  * URLs de logos oficiais das principais companhias
  */
+
 const companyLogos = {
   'royal-caribbean': 'https://www.royalcaribbean.com/content/dam/royal/resources/logo/logo-rci.svg',
   'carnival': 'https://www.carnival.com/~/media/Images/PreSales/Header/carnival-logo.png',
@@ -31,25 +32,19 @@ const companyLogos = {
 
 async function updateCompanyLogos() {
   console.log('🎨 Atualizando logos das companhias...\n');
-
-  const db = await getDb();
-  if (!db) {
-    console.error('❌ Banco de dados não disponível. Verifique a variável DATABASE_URL.');
-    process.exit(1);
-  }
-
+  
   for (const [slug, logoUrl] of Object.entries(companyLogos)) {
     try {
-      await db.update(companies)
+      const result = await db.update(companies)
         .set({ logoUrl })
         .where(eq(companies.slug, slug));
-
+      
       console.log(`✅ Atualizado logo para: ${slug}`);
     } catch (error) {
       console.error(`❌ Erro ao atualizar ${slug}:`, error.message);
     }
   }
-
+  
   console.log('\n✨ Logos atualizados com sucesso!');
   process.exit(0);
 }
