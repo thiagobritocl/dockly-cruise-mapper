@@ -10,44 +10,43 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const mappingPath = path.join(__dirname, 'ship-image-mapping.json');
-if (!fs.existsSync(mappingPath)) {
-  console.error("Mapping file not found!");
-  process.exit(1);
-}
-
 const mapping = JSON.parse(fs.readFileSync(mappingPath, 'utf8'));
+
+// Base URL del sitio en producción
+const BASE_URL = "https://dockly-cruise-mapper-production.up.railway.app";
 
 async function update() {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
-    console.error("DATABASE_URL environment variable is not set!");
+    console.error("DATABASE_URL not set!");
     process.exit(1);
   }
 
-  console.log("Connecting to database directly via mysql2...");
   const connection = await mysql.createConnection(databaseUrl);
-  
-  console.log("Updating database with local image paths...");
+  console.log("Connected to database. Updating with absolute URLs...");
 
   let updated = 0;
-  for (const [slug, imageUrl] of Object.entries(mapping)) {
+  for (const [slug, relPath] of Object.entries(mapping)) {
     try {
+      // Aseguramos que la ruta sea absoluta para evitar problemas de resolución en el cliente
+      const absoluteUrl = relPath.startsWith('http') ? relPath : `${BASE_URL}${relPath.startsWith('/') ? '' : '/'}${relPath}`;
+      
       const [result] = await connection.execute(
         'UPDATE ships SET imageUrl = ? WHERE slug = ?',
-        [imageUrl, slug]
+        [absoluteUrl, slug]
       );
       
       if (result.affectedRows > 0) {
         updated++;
-        console.log(`✅ Updated: ${slug}`);
+        console.log(`✅ ${slug} -> ${absoluteUrl}`);
       }
     } catch (error) {
-      console.error(`❌ Error updating ${slug}:`, error.message);
+      console.error(`❌ ${slug}: ${error.message}`);
     }
   }
 
   await connection.end();
-  console.log(`Successfully updated ${updated} ships in the database.`);
+  console.log(`Updated ${updated} ships.`);
   process.exit(0);
 }
 
