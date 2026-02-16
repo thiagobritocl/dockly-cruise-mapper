@@ -1,5 +1,4 @@
 import axios from 'axios';
-import * as cheerio from 'cheerio';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -8,9 +7,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const PUBLIC_DIR = path.join(__dirname, '../client/public/ships');
-if (!fs.existsSync(PUBLIC_DIR)) {
-  fs.mkdirSync(PUBLIC_DIR, { recursive: true });
-}
+const ASSETS_DIR = path.join(__dirname, '../client/src/assets/ships');
+
+[PUBLIC_DIR, ASSETS_DIR].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
 
 class WikipediaScraper {
   constructor() {
@@ -47,13 +50,21 @@ class WikipediaScraper {
         responseType: 'stream',
         headers: { 'User-Agent': this.userAgent }
       });
-      const filePath = path.join(PUBLIC_DIR, filename);
-      const writer = fs.createWriteStream(filePath);
-      response.data.pipe(writer);
-      return new Promise((resolve, reject) => {
-        writer.on('finish', resolve);
-        writer.on('error', reject);
+      
+      const publicFilePath = path.join(PUBLIC_DIR, filename);
+      const assetsFilePath = path.join(ASSETS_DIR, filename);
+      
+      const publicWriter = fs.createWriteStream(publicFilePath);
+      response.data.pipe(publicWriter);
+      
+      await new Promise((resolve, reject) => {
+        publicWriter.on('finish', resolve);
+        publicWriter.on('error', reject);
       });
+      
+      // Copiar a assets también para asegurar visibilidad en dev y build
+      fs.copyFileSync(publicFilePath, assetsFilePath);
+      return true;
     } catch (error) {
       console.error(`Error downloading ${url}:`, error.message);
       return false;
@@ -97,7 +108,7 @@ async function run() {
       console.log(`No image found for ${shipName}`);
     }
     // Rate limit
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 500));
   }
 
   fs.writeFileSync(path.join(__dirname, 'ship-image-mapping.json'), JSON.stringify(mapping, null, 2));
