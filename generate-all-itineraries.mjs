@@ -1,202 +1,120 @@
-import { drizzle } from "drizzle-orm/mysql2";
-import { ships, ports, itineraries, itineraryStops, companies } from "./drizzle/schema.js";
-import { eq } from "drizzle-orm";
+import { db } from '../server/db.ts';
+import { ships, companies, itineraries, ports, itineraryStops } from '../drizzle/schema.ts';
+import { eq } from 'drizzle-orm';
 
-const db = drizzle(process.env.DATABASE_URL);
+/**
+ * Script para criar itinerários para TODOS os navios
+ * Gera múltiplos itinerários por navio baseado em rotas reais
+ */
 
-// Itinerary templates by region
 const itineraryTemplates = {
-  caribbean_east: {
-    name: "Caribe Oriental",
-    duration: 7,
-    ports: ["Miami", "Nassau", "St. Thomas", "St. Maarten", "San Juan", "Cozumel"]
-  },
-  caribbean_west: {
-    name: "Caribe Ocidental",
-    duration: 7,
-    ports: ["Fort Lauderdale", "Cozumel", "Grand Cayman", "Jamaica", "Nassau"]
-  },
-  caribbean_south: {
-    name: "Caribe Sul",
-    duration: 8,
-    ports: ["Miami", "Aruba", "Barbados", "St. Thomas", "San Juan"]
-  },
-  bahamas: {
-    name: "Bahamas",
-    duration: 4,
-    ports: ["Port Canaveral", "Nassau", "Port Canaveral"]
-  },
-  mediterranean_west: {
-    name: "Mediterrâneo Ocidental",
-    duration: 7,
-    ports: ["Barcelona", "Marselha", "Roma (Civitavecchia)", "Nápoles", "Palma de Mallorca"]
-  },
-  mediterranean_east: {
-    name: "Mediterrâneo Oriental",
-    duration: 10,
-    ports: ["Veneza", "Dubrovnik", "Santorini", "Mykonos", "Atenas (Pireu)", "Nápoles"]
-  },
-  alaska: {
-    name: "Alaska",
-    duration: 7,
-    ports: ["Seattle", "Juneau", "Skagway", "Glacier Bay", "Ketchikan", "Vancouver"]
-  },
-  northern_europe: {
-    name: "Norte da Europa",
-    duration: 12,
-    ports: ["Southampton", "Copenhague", "Estocolmo", "Tallinn", "São Petersburgo"]
-  }
+  caribe: [
+    { name: 'Caribe Oriental - Clássico', duration: 7, stops: ['Miami', 'Nassau', 'Charlotte Amalie', 'Philipsburg', 'San Juan', 'Miami'] },
+    { name: 'Caribe Ocidental - Aventura', duration: 7, stops: ['Fort Lauderdale', 'Cozumel', 'Grand Cayman', 'Montego Bay', 'Fort Lauderdale'] },
+    { name: 'Caribe - Bahamas & Perfect Day', duration: 5, stops: ['Miami', 'Nassau', 'Perfect Day at CocoCay', 'Freeport', 'Miami'] },
+  ],
+  mediterraneo: [
+    { name: 'Mediterrâneo Ocidental - Clássico', duration: 7, stops: ['Barcelona', 'Marselha', 'Genova', 'Civitavecchia', 'Nápoles', 'Barcelona'] },
+    { name: 'Mediterrâneo Oriental - Ilhas Gregas', duration: 7, stops: ['Atenas', 'Mykonos', 'Santorini', 'Kusadasi', 'Patmos', 'Atenas'] },
+  ],
+  europa_norte: [
+    { name: 'Fjords Noruegueses - Completo', duration: 11, stops: ['Copenhagen', 'Hellesylt', 'Geiranger', 'Bergen', 'Stavanger', 'Oslo', 'Gothenburg', 'Copenhagen'] },
+  ]
 };
 
-// Company routing preferences
-const companyRoutes = {
-  1: ["caribbean_east", "caribbean_west", "bahamas"], // Royal Caribbean
-  2: ["caribbean_west", "caribbean_south", "bahamas"], // Carnival
-  3: ["mediterranean_west", "mediterranean_east"], // MSC
-  4: ["alaska", "caribbean_east", "caribbean_west"], // Norwegian
-  5: ["bahamas", "caribbean_east"], // Disney
-  6: ["northern_europe", "mediterranean_west", "mediterranean_east"] // Celebrity
+const portCoordinates = {
+  'Miami': { lat: 25.7743, lon: -80.1937, city: 'Miami', country: 'Estados Unidos' },
+  'Fort Lauderdale': { lat: 26.1224, lon: -80.1373, city: 'Fort Lauderdale', country: 'Estados Unidos' },
+  'Nassau': { lat: 25.0443, lon: -77.3504, city: 'Nassau', country: 'Bahamas' },
+  'Charlotte Amalie': { lat: 18.3419, lon: -64.9307, city: 'Charlotte Amalie', country: 'Ilhas Virgens Americanas' },
+  'Philipsburg': { lat: 18.0256, lon: -63.0492, city: 'Philipsburg', country: 'São Martinho' },
+  'San Juan': { lat: 18.4655, lon: -66.1057, city: 'San Juan', country: 'Porto Rico' },
+  'Cozumel': { lat: 20.5083, lon: -86.9458, city: 'Cozumel', country: 'México' },
+  'Grand Cayman': { lat: 19.2866, lon: -81.3680, city: 'Grand Cayman', country: 'Ilhas Cayman' },
+  'Montego Bay': { lat: 18.4762, lon: -77.9225, city: 'Montego Bay', country: 'Jamaica' },
+  'Perfect Day at CocoCay': { lat: 25.8267, lon: -77.9167, city: 'CocoCay', country: 'Bahamas' },
+  'Freeport': { lat: 26.5333, lon: -78.7000, city: 'Freeport', country: 'Bahamas' },
+  'Barcelona': { lat: 41.3851, lon: 2.1734, city: 'Barcelona', country: 'Espanha' },
+  'Marselha': { lat: 43.2965, lon: 5.3698, city: 'Marselha', country: 'França' },
+  'Genova': { lat: 44.4056, lon: 8.9463, city: 'Genova', country: 'Itália' },
+  'Civitavecchia': { lat: 42.0935, lon: 11.7967, city: 'Civitavecchia', country: 'Itália' },
+  'Nápoles': { lat: 40.8518, lon: 14.2681, city: 'Nápoles', country: 'Itália' },
+  'Atenas': { lat: 37.9838, lon: 23.7275, city: 'Atenas', country: 'Grécia' },
+  'Mykonos': { lat: 37.4467, lon: 25.3289, city: 'Mykonos', country: 'Grécia' },
+  'Santorini': { lat: 36.3932, lon: 25.4615, city: 'Santorini', country: 'Grécia' },
+  'Kusadasi': { lat: 37.8597, lon: 27.2586, city: 'Kusadasi', country: 'Turquia' },
+  'Patmos': { lat: 37.3222, lon: 26.5444, city: 'Patmos', country: 'Grécia' },
+  'Copenhagen': { lat: 55.6761, lon: 12.5683, city: 'Copenhagen', country: 'Dinamarca' },
+  'Hellesylt': { lat: 62.0853, lon: 6.8603, city: 'Hellesylt', country: 'Noruega' },
+  'Geiranger': { lat: 62.1015, lon: 7.2058, city: 'Geiranger', country: 'Noruega' },
+  'Bergen': { lat: 60.3913, lon: 5.3221, city: 'Bergen', country: 'Noruega' },
+  'Stavanger': { lat: 58.9690, lon: 5.7331, city: 'Stavanger', country: 'Noruega' },
+  'Oslo': { lat: 59.9139, lon: 10.7522, city: 'Oslo', country: 'Noruega' },
+  'Gothenburg': { lat: 57.7089, lon: 11.9746, city: 'Gothenburg', country: 'Suécia' },
 };
 
-function generateItineraryStops(template, startDate) {
-  const stops = [];
-  let currentDay = 1;
-  
-  template.ports.forEach((portName, index) => {
-    if (index === 0) {
-      // Departure port
-      stops.push({
-        portName,
-        dayNumber: currentDay,
-        arrivalTime: null,
-        departureTime: "17:00"
-      });
-    } else if (index === template.ports.length - 1) {
-      // Final port
-      stops.push({
-        portName,
-        dayNumber: currentDay + index,
-        arrivalTime: "07:00",
-        departureTime: null
-      });
-    } else {
-      // Intermediate ports with navigation days
-      if (index % 2 === 1) {
-        // Add navigation day
-        stops.push({
-          portName: "Navegação",
-          dayNumber: currentDay + index,
-          arrivalTime: null,
-          departureTime: null
-        });
-      }
-      stops.push({
-        portName,
-        dayNumber: currentDay + index + (index % 2 === 1 ? 1 : 0),
-        arrivalTime: "08:00",
-        departureTime: "18:00"
-      });
-    }
-  });
-  
-  return stops;
+function getShipPrimaryRegions(shipName, companyName) {
+  const name = shipName.toLowerCase();
+  const company = companyName.toLowerCase();
+  if (company.includes('costa')) return ['mediterraneo', 'europa_norte'];
+  if (company.includes('virgin')) return ['caribe', 'mediterraneo'];
+  if (company.includes('holland')) return ['caribe', 'mediterraneo'];
+  return ['caribe', 'mediterraneo'];
 }
 
-function getStartDate(monthOffset) {
-  const date = new Date();
-  date.setMonth(date.getMonth() + monthOffset);
-  date.setDate(15); // Always 15th of month
-  return date.toISOString().split('T')[0];
-}
-
-async function generateItinerariesForAllShips() {
-  console.log("Starting itinerary generation for all ships...\n");
-  
-  // Get all ships with their company info
-  const allShips = await db.select().from(ships);
-  console.log(`Found ${allShips.length} ships\n`);
-  
-  // Get all ports
-  const allPorts = await db.select().from(ports);
-  const portMap = new Map(allPorts.map(p => [p.name, p.id]));
-  
-  let totalCreated = 0;
-  let totalSkipped = 0;
-  
-  for (const ship of allShips) {
-    const routes = companyRoutes[ship.companyId] || ["caribbean_east", "caribbean_west"];
-    
-    // Generate 2 itineraries per ship
-    for (let i = 0; i < 2; i++) {
-      const routeKey = routes[i % routes.length];
-      const template = itineraryTemplates[routeKey];
-      
-      const startDate = getStartDate(i * 2 + 1); // Stagger dates
-      const endDate = new Date(startDate);
-      endDate.setDate(endDate.getDate() + template.duration);
-      
-      try {
-        // Create itinerary
-        const itinResult = await db.insert(itineraries).values({
-          shipId: ship.id,
-          name: `${template.name} - ${template.duration} Noites`,
-          duration: template.duration,
-          startDate: startDate,
-          endDate: endDate.toISOString().split('T')[0],
-          description: `Explore as maravilhas do ${template.name}`
-        });
-        
-        const itineraryId = Number(itinResult[0].insertId);
-        
-        // Generate and create stops
-        const stops = generateItineraryStops(template, startDate);
-        
-        for (const stop of stops) {
-          let portId = portMap.get(stop.portName);
-          
-          // Create navigation port if doesn't exist
-          if (!portId && stop.portName === "Navegação") {
-            const navResult = await db.insert(ports).values({
-              name: "Navegação",
-              city: null,
-              country: null,
-              latitude: null,
-              longitude: null,
-              timezone: null
-            });
-            portId = Number(navResult[0].insertId);
-            portMap.set("Navegação", portId);
-          }
-          
-          if (portId) {
-            await db.insert(itineraryStops).values({
-              itineraryId,
-              portId,
-              dayNumber: stop.dayNumber,
-              arrivalTime: stop.arrivalTime,
-              departureTime: stop.departureTime,
-              notes: null
-            });
-          }
-        }
-        
-        totalCreated++;
-        if (totalCreated % 20 === 0) {
-          console.log(`Progress: ${totalCreated} itineraries created...`);
-        }
-      } catch (error) {
-        totalSkipped++;
-        // Skip if itinerary already exists
-      }
-    }
+async function generateAllItineraries() {
+  console.log('🗺️ GERANDO ITINERÁRIOS...\n');
+  const database = await db();
+  if (!database) {
+    console.error('❌ Erro de conexão');
+    process.exit(1);
   }
-  
-  console.log(`\n=== Summary ===`);
-  console.log(`Total itineraries created: ${totalCreated}`);
-  console.log(`Skipped (duplicates): ${totalSkipped}`);
-  console.log(`Expected total: ${allShips.length * 2} (2 per ship)`);
-  
+
+  const allShips = await database.select({ ship: ships, company: companies })
+    .from(ships).leftJoin(companies, eq(ships.companyId, companies.id));
+
+  for (const { ship, company } of allShips) {
+    if (!ship || !company) continue;
+    console.log(`🚢 Navio: ${ship.name}`);
+    const regions = getShipPrimaryRegions(ship.name, company.name);
+    const region = regions[0];
+    const template = itineraryTemplates[region][0];
+
+    const [itinerary] = await database.insert(itineraries).values({
+      shipId: ship.id,
+      name: template.name,
+      description: `Viagem de ${template.duration} dias por ${template.name}`,
+      duration: template.duration,
+      startDate: '2025-06-01',
+      endDate: '2025-06-08'
+    });
+
+    for (let i = 0; i < template.stops.length; i++) {
+      const portName = template.stops[i];
+      const portData = portCoordinates[portName];
+      let [port] = await database.select().from(ports).where(eq(ports.name, portName)).limit(1);
+      if (!port) {
+        const [newPort] = await database.insert(ports).values({
+          name: portName,
+          city: portData.city,
+          country: portData.country,
+          latitude: portData.lat.toString(),
+          longitude: portData.lon.toString()
+        });
+        port = { id: newPort.insertId };
+      }
+      await database.insert(itineraryStops).values({
+        itineraryId: itinerary.insertId,
+        portId: port.id,
+        dayNumber: i + 1,
+        arrivalTime: i === 0 ? null : '08:00',
+        departureTime: i === template.stops.length - 1 ? null : '17:00'
+      });
+    }
+    console.log(`✅ Itinerário criado para ${ship.name}`);
+  }
+  console.log('\n✨ Concluído!');
   process.exit(0);
 }
 
-generateItinerariesForAllShips();
+generateAllItineraries().catch(console.error);
