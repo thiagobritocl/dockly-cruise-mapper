@@ -1,4 +1,4 @@
-import { db } from '../server/db.ts';
+import { getDb } from '../server/db.ts';
 import { ships } from '../drizzle/schema.ts';
 import { eq } from 'drizzle-orm';
 
@@ -58,7 +58,13 @@ const shipImages = {
 
 async function updateShipImages() {
   console.log('🚢 Atualizando fotos dos navios...\n');
-  
+
+  const db = await getDb();
+  if (!db) {
+    console.error('❌ Banco de dados não disponível. Verifique a variável DATABASE_URL.');
+    process.exit(1);
+  }
+
   let updatedCount = 0;
   let notFoundCount = 0;
   
@@ -68,7 +74,7 @@ async function updateShipImages() {
         .set({ imageUrl })
         .where(eq(ships.slug, slug));
       
-      if (result.rowsAffected > 0) {
+      if (result[0].affectedRows > 0) {
         console.log(`✅ Foto atualizada: ${slug}`);
         updatedCount++;
       } else {
